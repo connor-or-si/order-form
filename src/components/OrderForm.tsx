@@ -11,9 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
-import { CalendarIcon, Check } from 'lucide-react';
+import { CalendarIcon, Check, Link } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 // Form Steps enum
 enum FormStep {
@@ -34,6 +35,8 @@ const OrderForm = () => {
     deliveryDate: '',
     quantity: 1,
   });
+  const [webhookUrl, setWebhookUrl] = useState<string>('');
+  const [showWebhookConfig, setShowWebhookConfig] = useState(false);
   const [confirmation, setConfirmation] = useState<OrderConfirmation | null>(null);
   const [requestId, setRequestId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -91,7 +94,7 @@ const OrderForm = () => {
     try {
       setStep(FormStep.Loading);
       // Submit the form data to webhook
-      const id = await submitOrderRequest(formData);
+      const id = await submitOrderRequest(formData, webhookUrl || undefined);
       setRequestId(id);
       
       // In a real application, we would now wait for a webhook callback with the confirmation data
@@ -103,7 +106,9 @@ const OrderForm = () => {
     } catch (error) {
       toast({
         title: "Error submitting order",
-        description: "Could not submit your order. Please try again later.",
+        description: webhookUrl 
+          ? "Failed to send data to the specified webhook URL. Please check the URL and try again."
+          : "Could not submit your order. Please try again later.",
         variant: "destructive"
       });
       setStep(FormStep.Initial);
@@ -210,6 +215,38 @@ const OrderForm = () => {
             required
           />
         </div>
+
+        {/* Webhook Configuration */}
+        <Collapsible open={showWebhookConfig} onOpenChange={setShowWebhookConfig} className="border rounded-md p-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="webhook-toggle" className="cursor-pointer flex items-center gap-2">
+              <Link size={16} />
+              <span>Webhook Configuration</span>
+            </Label>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="w-9 p-0">
+                <span className={cn("transition-transform", showWebhookConfig ? "rotate-180" : "")}>
+                  ⌄
+                </span>
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+          <CollapsibleContent className="pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="webhook-url">Webhook URL</Label>
+              <Input
+                id="webhook-url"
+                type="url"
+                placeholder="https://your-webhook-url.com"
+                value={webhookUrl}
+                onChange={(e) => setWebhookUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                If left empty, simulated mode will be used.
+              </p>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
 
       <Button type="submit" className="w-full" disabled={!formData.partId || !formData.deliveryDate || formData.quantity < 1}>
