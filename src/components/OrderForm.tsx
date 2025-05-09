@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { fetchParts, Part } from '../services/partDataService';
-import { submitOrderRequest, mockReceiveConfirmation, OrderRequest, OrderConfirmation } from '../services/webhookService';
+import { fetchParts, getPartById, Part } from '../services/partDataService';
+import { submitOrderRequest, receiveOrderDetails, OrderRequest, OrderDetails, submitOrderConfirmation, OrderConfirmation  } from '../services/webhookService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { CalendarIcon, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { DateTime } from 'luxon';
 
 // Form Steps enum
 enum FormStep {
@@ -30,12 +31,11 @@ const OrderForm = () => {
   const [isLoadingParts, setIsLoadingParts] = useState(true);
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [formData, setFormData] = useState<OrderRequest>({
-    partId: '',
+    partNumber: '',
     deliveryDate: '',
     quantity: 1,
   });
-  const [confirmation, setConfirmation] = useState<OrderConfirmation | null>(null);
-  const [requestId, setRequestId] = useState<string | null>(null);
+  const [details, setDetails] = useState<OrderDetails | null>(null);
   const { toast } = useToast();
 
   // Load parts data on component mount
@@ -64,7 +64,11 @@ const OrderForm = () => {
     if (newDate) {
       setFormData({
         ...formData,
-        deliveryDate: newDate.toISOString().split('T')[0],
+        deliveryDate: new Intl.DateTimeFormat('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        }).format(newDate).replace(/ /g, '-').toUpperCase(),
       });
     }
   };
@@ -79,7 +83,7 @@ const OrderForm = () => {
     e.preventDefault();
 
     // Validation
-    if (!formData.partId || !formData.deliveryDate || formData.quantity < 1) {
+    if (!formData.partNumber || !formData.deliveryDate || formData.quantity < 1) {
       toast({
         title: "Please fill out all fields",
         description: "All fields are required to submit your order request.",
@@ -91,13 +95,12 @@ const OrderForm = () => {
     try {
       setStep(FormStep.Loading);
       // Submit the form data to webhook
-      const id = await submitOrderRequest(formData);
-      setRequestId(id);
+      const response = await submitOrderRequest(formData, 'http://localhost:5678/webhook-test/af6e2ab6-3f3e-4537-9d5f-78188bb257e7');
       
       // In a real application, we would now wait for a webhook callback with the confirmation data
       // For this demo, we'll simulate receiving the webhook response
-      const confirmationData = await mockReceiveConfirmation(id, formData);
-      setConfirmation(confirmationData);
+      const orderData = await receiveOrderDetails(response);
+      setDetails(orderData);
       setStep(FormStep.Confirmation);
       
     } catch (error) {
@@ -111,11 +114,26 @@ const OrderForm = () => {
   };
 
   // Handle order confirmation
-  const handleConfirmOrder = () => {
+  const handleConfirmOrder = async () => {
+    const orderConfirmation: OrderConfirmation = {
+      part: getPartById(details.partNumber).name,
+      partNumber: details.partNumber,
+      curDate: DateTime.now().toFormat('dd-MMM-yyyy'),
+      orderDate: details.requestedDate,
+      facility: 'ORG',
+      quantity: details.orderQty,
+      price: details.price,
+      totalCost: details.price * details.orderQty,
+      numPacks: details.numPacks
+
+    };
+
+    await submitOrderConfirmation(orderConfirmation, 'http://localhost:5678/webhook-test/ab613fba-ef27-4db4-bd19-c3503a11538f');
+
     setStep(FormStep.Complete);
     toast({
       title: "Order Confirmed!",
-      description: `Your order #${confirmation?.orderId} has been placed successfully.`,
+      description: `Your order has been placed successfully.`,
     });
   };
 
@@ -131,13 +149,11 @@ const OrderForm = () => {
   // Reset form
   const handleReset = () => {
     setFormData({
-      partId: '',
+      partNumber: '',
       deliveryDate: '',
       quantity: 1,
     });
     setDate(undefined);
-    setConfirmation(null);
-    setRequestId(null);
     setStep(FormStep.Initial);
   };
 
@@ -148,8 +164,8 @@ const OrderForm = () => {
         <div className="space-y-2">
           <Label htmlFor="part">Part Number</Label>
           <Select
-            value={formData.partId}
-            onValueChange={(value) => handleChange('partId', value)}
+            value={formData.partNumber}
+            onValueChange={(value) => handleChange('partNumber', value)}
             disabled={isLoadingParts}
           >
             <SelectTrigger id="part" className="w-full">
@@ -157,17 +173,12 @@ const OrderForm = () => {
             </SelectTrigger>
             <SelectContent>
               {parts.map((part) => (
-                <SelectItem key={part.id} value={part.id}>
-                  {part.id} - {part.name}
+                <SelectItem key={part.name} value={part.id}>
+                  {part.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          {formData.partId && (
-            <p className="text-sm text-muted-foreground">
-              {parts.find(p => p.id === formData.partId)?.description}
-            </p>
-          )}
         </div>
 
         <div className="space-y-2">
@@ -212,7 +223,7 @@ const OrderForm = () => {
         </div>
       </div>
 
-      <Button type="submit" className="w-full" disabled={!formData.partId || !formData.deliveryDate || formData.quantity < 1}>
+      <Button type="submit" className="w-full" disabled={!formData.partNumber || !formData.deliveryDate || formData.quantity < 1}>
         Submit Request
       </Button>
     </form>
@@ -229,9 +240,7 @@ const OrderForm = () => {
 
   // Render the confirmation step
   const renderConfirmation = () => {
-    if (!confirmation) return null;
-    
-    const selectedPart = parts.find(p => p.id === confirmation.partId);
+    if (!details) return null;
     
     return (
       <div className="space-y-6">
@@ -242,22 +251,28 @@ const OrderForm = () => {
             
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="text-muted-foreground">Part:</div>
-              <div className="font-medium">{confirmation.partId} - {selectedPart?.name}</div>
+              <div className="font-medium">{getPartById(details.partNumber).name}</div>
               
-              <div className="text-muted-foreground">Description:</div>
-              <div>{selectedPart?.description}</div>
+              <div className="text-muted-foreground">Desired Date:</div>
+              <div>{details.requestedDate}</div>
               
-              <div className="text-muted-foreground">Quantity:</div>
-              <div>{confirmation.quantity}</div>
+              <div className="text-muted-foreground">Available Date For Desired Qty:</div>
+              <div>{details.availableDate}</div>
+
+              <div className="text-muted-foreground">MOQ:</div>
+              <div className="font-medium">{details.MOQ}</div>
+
+              <div className="text-muted-foreground">Desired Qty:</div>
+              <div className="font-medium">{details.desiredQty}</div>
+
+              <div className="text-muted-foreground">Order Qty:</div>
+              <div className="font-medium">{details.orderQty}</div>
               
-              <div className="text-muted-foreground">Delivery Date:</div>
-              <div className="font-medium">{new Date(confirmation.confirmedDeliveryDate).toLocaleDateString()}</div>
+              <div className="text-muted-foreground">Part Price:</div>
+              <div className="font-medium">${details.price.toFixed(2)}</div>
               
-              <div className="text-muted-foreground">Price:</div>
-              <div className="font-medium">${confirmation.price.toFixed(2)}</div>
-              
-              <div className="text-muted-foreground">Order ID:</div>
-              <div>{confirmation.orderId}</div>
+              <div className="text-muted-foreground">Total Cost:</div>
+              <div className="font-medium">${(details.price * details.orderQty).toFixed(2)}</div>
             </div>
           </div>
         </div>
@@ -280,7 +295,7 @@ const OrderForm = () => {
 
   // Render the completion step
   const renderComplete = () => {
-    if (!confirmation) return null;
+    if (!details) return null;
     
     return (
       <div className="space-y-6 text-center">
@@ -291,19 +306,19 @@ const OrderForm = () => {
         <div>
           <h3 className="text-lg font-medium">Order Successfully Placed!</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Your order #{confirmation.orderId} has been confirmed.
+            Your order has been confirmed.
           </p>
         </div>
         
         <div className="rounded-lg border bg-card p-4 text-center">
           <p className="text-sm text-muted-foreground">You will receive a confirmation email shortly.</p>
           <p className="mt-1 text-sm">
-            <span className="text-muted-foreground">Delivery Date: </span>
-            <span className="font-medium">{new Date(confirmation.confirmedDeliveryDate).toLocaleDateString()}</span>
+            <span className="text-muted-foreground">Order Date: </span>
+            <span className="font-medium">{details.availableDate}</span>
           </p>
           <p className="mt-1 text-sm">
             <span className="text-muted-foreground">Total Price: </span>
-            <span className="font-medium">${confirmation.price.toFixed(2)}</span>
+            <span className="font-medium">${(details.price * details.orderQty).toFixed(2)}</span>
           </p>
         </div>
         
