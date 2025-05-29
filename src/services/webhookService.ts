@@ -1,8 +1,8 @@
-
 export interface OrderRequest {
   partNumber: string;
   deliveryDate: string;
   quantity: number;
+  expedite?: boolean;
 }
 
 export interface OrderDetails {
@@ -14,6 +14,7 @@ export interface OrderDetails {
   desiredQty: number;
   orderQty: number;
   numPacks: number;
+  expedite: boolean;
 }
 
 export interface OrderConfirmation {
@@ -108,8 +109,6 @@ export const submitOrderRequest = async (orderData: OrderRequest, webhookUrl?: s
   }
 };
 
-
-
 export const receiveOrderDetails = async (response: Response): Promise<OrderDetails> => {
   // In a real app, this would be a webhook or polling mechanism that waits for a response
   try {
@@ -127,7 +126,8 @@ export const receiveOrderDetails = async (response: Response): Promise<OrderDeta
       MOQ: webhookData.MOQ,
       desiredQty: webhookData.desiredQty,
       orderQty: webhookData.todayOrderQty,
-      numPacks: webhookData.numPacks
+      numPacks: webhookData.numPacks,
+      expedite: webhookData.expedite
     };
 
     return order;

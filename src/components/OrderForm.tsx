@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 import { CalendarIcon, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -30,10 +31,12 @@ const OrderForm = () => {
   const [parts, setParts] = useState<Part[]>([]);
   const [isLoadingParts, setIsLoadingParts] = useState(true);
   const [date, setDate] = useState<Date | undefined>(undefined);
+  const [expedite, setExpedite] = useState(false);
   const [formData, setFormData] = useState<OrderRequest>({
     partNumber: '',
     deliveryDate: '',
     quantity: 1,
+    expedite: false,
   });
   const [details, setDetails] = useState<OrderDetails | null>(null);
   const { toast } = useToast();
@@ -62,15 +65,23 @@ const OrderForm = () => {
   const handleDateChange = (newDate: Date | undefined) => {
     setDate(newDate);
     if (newDate) {
+      const formattedDate = new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }).format(newDate).replace(/ /g, '-').toUpperCase();
+      
       setFormData({
         ...formData,
-        deliveryDate: new Intl.DateTimeFormat('en-GB', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        }).format(newDate).replace(/ /g, '-').toUpperCase(),
+        deliveryDate: formattedDate,
       });
     }
+  };
+
+  // Handle expedite change
+  const handleExpediteChange = (checked: boolean) => {
+    setExpedite(checked);
+    setFormData({ ...formData, expedite: checked });
   };
 
   // Handle form input changes
@@ -220,6 +231,17 @@ const OrderForm = () => {
             onChange={(e) => handleChange('quantity', parseInt(e.target.value) || 0)}
             required
           />
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="expedite"
+            checked={expedite}
+            onCheckedChange={handleExpediteChange}
+          />
+          <Label htmlFor="expedite" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            Expedite this request
+          </Label>
         </div>
       </div>
 
