@@ -135,8 +135,8 @@ const OrderForm = () => {
       quantity: details.orderQty,
       price: details.price,
       totalCost: details.price * details.orderQty,
-      numPacks: details.numPacks
-
+      numPacks: details.numPacks,
+      expeditite: details.expedite ? 'Y' : 'N'
     };
 
     await submitOrderConfirmation(orderConfirmation, 'http://localhost:5678/webhook-test/ab613fba-ef27-4db4-bd19-c3503a11538f');
@@ -277,6 +277,9 @@ const OrderForm = () => {
               
               <div className="text-muted-foreground">Desired Date:</div>
               <div>{details.requestedDate}</div>
+
+              <div className="text-muted-foreground">Expedited:</div>
+              <div>{details.expedite ? 'Yes' : 'No'}</div>
               
               <div className="text-muted-foreground">Available Date For Desired Qty:</div>
               <div>{details.availableDate}</div>

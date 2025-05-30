@@ -27,6 +27,7 @@ export interface OrderConfirmation {
   price: number;
   totalCost: number;
   numPacks: number;
+  expeditite: string;
 }
 
 export const submitOrderConfirmation = async (orderConfirmation: OrderConfirmation, webhookUrl?: string): Promise<void> => {
