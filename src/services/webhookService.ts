@@ -14,7 +14,7 @@ export interface OrderDetails {
   desiredQty: number;
   orderQty: number;
   numPacks: number;
-  expedite: boolean;
+  expedite: string;
 }
 
 export interface OrderConfirmation {
@@ -128,8 +128,10 @@ export const receiveOrderDetails = async (response: Response): Promise<OrderDeta
       desiredQty: webhookData.desiredQty,
       orderQty: webhookData.todayOrderQty,
       numPacks: webhookData.numPacks,
-      expedite: webhookData.expedite
+      expedite: String(webhookData.expedite) === "true" ? "Y" : "N"
     };
+    console.log(webhookData.expedite);
+    console.log(order.expedite);
 
     return order;
   } catch (error) {

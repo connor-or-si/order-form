@@ -25,6 +25,18 @@ enum FormStep {
   Complete = 'complete',
 }
 
+function formatDateToDDMMMYYYY(date) {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const year = d.getFullYear();
+
+    const monthAbbrs = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 
+                        'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    const month = monthAbbrs[d.getMonth()];
+
+    return `${day}-${month}-${year}`;
+}
+
 const OrderForm = () => {
   // State
   const [step, setStep] = useState<FormStep>(FormStep.Initial);
@@ -65,11 +77,7 @@ const OrderForm = () => {
   const handleDateChange = (newDate: Date | undefined) => {
     setDate(newDate);
     if (newDate) {
-      const formattedDate = new Intl.DateTimeFormat('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }).format(newDate).replace(/ /g, '-').toUpperCase();
+      const formattedDate = formatDateToDDMMMYYYY(newDate);
       
       setFormData({
         ...formData,
@@ -136,7 +144,7 @@ const OrderForm = () => {
       price: details.price,
       totalCost: details.price * details.orderQty,
       numPacks: details.numPacks,
-      expeditite: details.expedite ? 'Y' : 'N'
+      expeditite: details.expedite
     };
 
     await submitOrderConfirmation(orderConfirmation, 'http://localhost:5678/webhook-test/ab613fba-ef27-4db4-bd19-c3503a11538f');
@@ -280,7 +288,7 @@ const OrderForm = () => {
                 <div>{details.requestedDate}</div>
 
                 <div className="text-muted-foreground">Expedited:</div>
-                <div>{details.expedite ? 'Yes' : 'No'}</div>
+                <div>{details.expedite === "Y" ? 'Yes' : 'No'}</div>
                 
                 <div className="text-muted-foreground">Available Date For Desired Qty:</div>
                 <div>{details.availableDate}</div>
@@ -331,7 +339,7 @@ const OrderForm = () => {
               <div>{details.requestedDate}</div>
 
               <div className="text-muted-foreground">Expedited:</div>
-              <div>{details.expedite ? 'Yes' : 'No'}</div>
+              <div>{details.expedite === "Y" ? 'Yes' : 'No'}</div>
               
               <div className="text-muted-foreground">Available Date For Desired Qty:</div>
               <div>{details.availableDate}</div>
