@@ -263,6 +263,58 @@ const OrderForm = () => {
   // Render the confirmation step
   const renderConfirmation = () => {
     if (!details) return null;
+
+    if (details.orderQty == 0) {
+      return (
+        <div className="space-y-6">
+          <div className="rounded-lg border bg-card p-4">
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium">Order Details</h3>
+              <Separator />
+              
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="text-muted-foreground">Part:</div>
+                <div className="font-medium">{getPartById(details.partNumber).name}</div>
+                
+                <div className="text-muted-foreground">Desired Date:</div>
+                <div>{details.requestedDate}</div>
+
+                <div className="text-muted-foreground">Expedited:</div>
+                <div>{details.expedite ? 'Yes' : 'No'}</div>
+                
+                <div className="text-muted-foreground">Available Date For Desired Qty:</div>
+                <div>{details.availableDate}</div>
+
+                <div className="text-muted-foreground">MOQ:</div>
+                <div className="font-medium">{details.MOQ}</div>
+
+                <div className="text-muted-foreground">Desired Qty:</div>
+                <div className="font-medium">{details.desiredQty}</div>
+
+                <div className="text-muted-foreground">Order Qty:</div>
+                <div className="font-medium">{details.orderQty}</div>
+                
+                <div className="text-muted-foreground">Part Price:</div>
+                <div className="font-medium">${details.price.toFixed(2)}</div>
+                
+                <div className="text-muted-foreground">Total Cost:</div>
+                <div className="font-medium">${(details.price * details.orderQty).toFixed(2)}</div>
+              </div>
+            </div>
+          </div>
+          
+          <p className="text-center text-sm text-muted-foreground">
+            Sorry, there is nothing available for this date, please try again.
+          </p>
+          
+          <div className="flex gap-3">
+            <Button onClick={handleCancelOrder} variant="outline" className="flex-1">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      );
+    }
     
     return (
       <div className="space-y-6">
